@@ -34,20 +34,22 @@ Out of the box, the script behaves like this:
   - If OpenAI summarization fails during a run, the script falls back to extractive summaries instead of crashing
 - Output format: Markdown report in the `reports/` directory
 
+If you want a machine-specific version of these instructions with local absolute paths, see `README_local.md`.
+
 ## Files
 
-- Script: [`biorxiv_human_evo_monitor.py`](/Users/jakey/Documents/New project/biorxiv_human_evo_monitor.py)
-- Conda environment: [`environment.yml`](/Users/jakey/Documents/New project/environment.yml)
-- Optional pip requirements: [`requirements.txt`](/Users/jakey/Documents/New project/requirements.txt)
-- State file default path: [`data/summarized_biorxiv_papers.json`](/Users/jakey/Documents/New project/data/summarized_biorxiv_papers.json)
-- Report output directory default: [`reports/`](/Users/jakey/Documents/New project/reports)
+- Script: [`biorxiv_human_evo_monitor.py`](biorxiv_human_evo_monitor.py)
+- Conda environment: [`environment.yml`](environment.yml)
+- Optional pip requirements: [`requirements.txt`](requirements.txt)
+- State file default path: `data/summarized_biorxiv_papers.json`
+- Report output directory default: `reports/`
 
 ## Installation With Conda
 
 Create the environment:
 
 ```bash
-conda env create -f /Users/jakey/Documents/New\ project/environment.yml
+conda env create -f environment.yml
 ```
 
 Activate it:
@@ -59,7 +61,7 @@ conda activate biorxiv-monitor
 If you prefer to update the environment after editing `environment.yml`:
 
 ```bash
-conda env update -f /Users/jakey/Documents/New\ project/environment.yml --prune
+conda env update -f environment.yml --prune
 ```
 
 ## OpenAI API Key
@@ -85,31 +87,31 @@ If the API key is set but OpenAI returns a quota, billing, rate-limit, or simila
 Run once immediately:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once
+python3 biorxiv_human_evo_monitor.py --run-once
 ```
 
 Run once with a custom AI-summary cap:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once --max-ai-summary-papers 5
+python3 biorxiv_human_evo_monitor.py --run-once --max-ai-summary-papers 5
 ```
 
 Run once with a custom publication window:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once --publication-window-days 14
+python3 biorxiv_human_evo_monitor.py --run-once --publication-window-days 14
 ```
 
 Run once with a custom bioRxiv search query:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once --search-query '"archaic introgression" OR Neanderthal OR Denisovan'
+python3 biorxiv_human_evo_monitor.py --run-once --search-query '"archaic introgression" OR Neanderthal OR Denisovan'
 ```
 
 Run once with custom output and state paths:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py \
+python3 biorxiv_human_evo_monitor.py \
   --run-once \
   --output-dir custom_reports \
   --state-file custom_data/summarized.json
@@ -120,7 +122,7 @@ python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py \
 The script supports an internal daily scheduler:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --schedule 06:00
+python3 biorxiv_human_evo_monitor.py --schedule 06:00
 ```
 
 That process stays alive and runs the monitor each day at 6:00 AM local time.
@@ -130,7 +132,7 @@ For long-term reliability, it is usually better to use an OS-level scheduler suc
 Example scheduled command:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once
+python3 biorxiv_human_evo_monitor.py --run-once
 ```
 
 ## Command-Line Options
@@ -296,7 +298,7 @@ The extractive summarizer scores sentences in the abstract and returns a short b
 This only summarizes papers from the last week and records them in the state file:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once
+python3 biorxiv_human_evo_monitor.py --run-once
 ```
 
 ### Conservative low-cost run
@@ -304,7 +306,7 @@ python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-o
 This disables most AI use by setting a low cap:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once --max-ai-summary-papers 3
+python3 biorxiv_human_evo_monitor.py --run-once --max-ai-summary-papers 3
 ```
 
 ### Wider publication window
@@ -312,7 +314,7 @@ python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-o
 If you want to catch papers from the last two weeks:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-once --publication-window-days 14 --limit-days 14
+python3 biorxiv_human_evo_monitor.py --run-once --publication-window-days 14 --limit-days 14
 ```
 
 ### Different scientific focus
@@ -320,7 +322,7 @@ python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py --run-o
 If you want to reuse the script for a different search theme:
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py \
+python3 biorxiv_human_evo_monitor.py \
   --run-once \
   --search-query '"human population genetics" OR admixture OR demography'
 ```
@@ -328,10 +330,10 @@ python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py \
 ### Dedicated output location
 
 ```bash
-python3 /Users/jakey/Documents/New\ project/biorxiv_human_evo_monitor.py \
+python3 biorxiv_human_evo_monitor.py \
   --run-once \
-  --output-dir /Users/jakey/Documents/New\ project/reports \
-  --state-file /Users/jakey/Documents/New\ project/data/summarized_biorxiv_papers.json
+  --output-dir reports \
+  --state-file data/summarized_biorxiv_papers.json
 ```
 
 ## Notes And Caveats
@@ -377,6 +379,6 @@ In that case, the report will also make the fallback explicit in its `Summary mo
 
 Delete or edit the state file:
 
-- [`data/summarized_biorxiv_papers.json`](/Users/jakey/Documents/New project/data/summarized_biorxiv_papers.json)
+- `data/summarized_biorxiv_papers.json`
 
 If you remove a DOI from that file, the script can summarize it again on a future run as long as it still falls within the publication window.

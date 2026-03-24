@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
+.DS_Store
 data/
 reports/
 README_local.md

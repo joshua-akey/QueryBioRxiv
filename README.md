@@ -117,6 +117,12 @@ python3 biorxiv_human_evo_monitor.py \
   --state-file custom_data/summarized.json
 ```
 
+Run once with debug filter counts:
+
+```bash
+python3 biorxiv_human_evo_monitor.py --run-once --debug-counts
+```
+
 ## Daily Scheduling
 
 The script supports an internal daily scheduler:
@@ -225,6 +231,25 @@ Default:
 data/summarized_biorxiv_papers.json
 ```
 
+### `--debug-counts`
+
+Prints internal filter counts to stdout and includes them in the generated report.
+
+This is useful when diagnosing discrepancies between:
+
+- the number of papers returned by the script
+- the number of papers returned by a manual bioRxiv website search
+
+The debug section reports counts for:
+
+- API records seen
+- records with enough metadata to evaluate
+- query matches before DOI deduplication
+- candidate papers after DOI deduplication
+- papers skipped because they were already summarized
+- papers skipped because they were outside the publication window
+- final papers summarized
+
 ### `--output-dir PATH`
 
 Directory where Markdown reports are written.
@@ -326,6 +351,26 @@ python3 biorxiv_human_evo_monitor.py \
   --run-once \
   --search-query '"human population genetics" OR admixture OR demography'
 ```
+
+### Diagnose count discrepancies
+
+If the website search and script results differ a lot:
+
+```bash
+python3 biorxiv_human_evo_monitor.py \
+  --run-once \
+  --debug-counts \
+  --publication-window-days 7 \
+  --limit-days 7
+```
+
+Then compare the debug counts in stdout or the report to see whether the drop happens at:
+
+- API retrieval
+- local query matching
+- DOI deduplication
+- publication-window filtering
+- prior-summary filtering
 
 ### Dedicated output location
 

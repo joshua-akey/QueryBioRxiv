@@ -49,6 +49,17 @@ class Paper:
     category: str = ""
 
 
+@dataclass
+class DebugStats:
+    api_records_seen: int = 0
+    api_records_with_minimal_fields: int = 0
+    query_matched_before_dedup: int = 0
+    candidate_papers_after_dedup: int = 0
+    skipped_already_summarized: int = 0
+    skipped_outside_publication_window: int = 0
+    final_new_papers: int = 0
+
+
 def api_detail_url(start_date: dt.date, end_date: dt.date, cursor: int) -> str:
     return f"{API_URL}/{start_date.isoformat()}/{end_date.isoformat()}/{cursor}/json"
 
@@ -87,7 +98,12 @@ def matches_search_query(paper: Paper, query: str) -> bool:
     return any(term in haystack for term in terms)
 
 
-def fetch_candidate_papers(session: requests.Session, query: str, limit_days: int) -> list[Paper]:
+def fetch_candidate_papers(
+    session: requests.Session,
+    query: str,
+    limit_days: int,
+    debug_stats: DebugStats | None = None,
+) -> list[Paper]:
     require_requests()
     end_date = dt.date.today()
     start_date = end_date - dt.timedelta(days=limit_days)
@@ -103,6 +119,8 @@ def fetch_candidate_papers(session: requests.Session, query: str, limit_days: in
             break
 
         for record in records:
+            if debug_stats is not None:
+                debug_stats.api_records_seen += 1
             paper = Paper(
                 title=clean_text(record.get("title", "")),
                 authors=parse_api_authors(record.get("authors", "")),
@@ -112,8 +130,13 @@ def fetch_candidate_papers(session: requests.Session, query: str, limit_days: in
                 abstract=clean_text(record.get("abstract", "")),
                 category=clean_text(record.get("category", "")),
             )
-            if paper.doi and paper.title and paper.abstract and matches_search_query(paper, query):
-                papers.append(paper)
+            if paper.doi and paper.title and paper.abstract:
+                if debug_stats is not None:
+                    debug_stats.api_records_with_minimal_fields += 1
+                if matches_search_query(paper, query):
+                    if debug_stats is not None:
+                        debug_stats.query_matched_before_dedup += 1
+                    papers.append(paper)
 
         cursor += len(records)
         total_items = parse_total_items(payload)
@@ -123,6 +146,8 @@ def fetch_candidate_papers(session: requests.Session, query: str, limit_days: in
     deduped: dict[str, Paper] = {}
     for paper in papers:
         deduped[paper.doi] = paper
+    if debug_stats is not None:
+        debug_stats.candidate_papers_after_dedup = len(deduped)
     return list(deduped.values())
 
 
@@ -279,6 +304,7 @@ def write_report(
     max_ai_summary_papers: int,
     publication_window_days: int,
     search_query: str,
+    debug_stats: DebugStats | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     day = dt.datetime.now().strftime("%Y-%m-%d")
@@ -293,6 +319,19 @@ def write_report(
         f"New papers found: {len(papers)}",
         "",
     ]
+    if debug_stats is not None:
+        lines.extend([
+            "## Debug Counts",
+            "",
+            f"- API records seen: {debug_stats.api_records_seen}",
+            f"- API records with DOI/title/abstract: {debug_stats.api_records_with_minimal_fields}",
+            f"- Query matches before DOI deduplication: {debug_stats.query_matched_before_dedup}",
+            f"- Candidate papers after DOI deduplication: {debug_stats.candidate_papers_after_dedup}",
+            f"- Skipped as already summarized: {debug_stats.skipped_already_summarized}",
+            f"- Skipped outside publication window: {debug_stats.skipped_outside_publication_window}",
+            f"- Final new papers summarized: {debug_stats.final_new_papers}",
+            "",
+        ])
     for paper in papers:
         lines.extend([
             f"## {paper.title}",
@@ -321,6 +360,7 @@ def run_once(
     max_ai_summary_papers: int,
     publication_window_days: int,
     search_query: str,
+    debug_counts: bool,
 ) -> int:
     require_requests()
     session = requests.Session()
@@ -334,8 +374,14 @@ def run_once(
     )
 
     summarized_papers = load_summarized_papers(state_path)
+    debug_stats = DebugStats() if debug_counts else None
     try:
-        candidate_papers = fetch_candidate_papers(session, search_query, limit_days=limit_days)
+        candidate_papers = fetch_candidate_papers(
+            session,
+            search_query,
+            limit_days=limit_days,
+            debug_stats=debug_stats,
+        )
     except requests.HTTPError as exc:
         raise RuntimeError(
             "bioRxiv API request failed. "
@@ -345,10 +391,16 @@ def run_once(
     new_papers: list[Paper] = []
     for paper in candidate_papers:
         if paper.doi in summarized_papers:
+            if debug_stats is not None:
+                debug_stats.skipped_already_summarized += 1
             continue
         if not is_recent_paper(paper, publication_window_days):
+            if debug_stats is not None:
+                debug_stats.skipped_outside_publication_window += 1
             continue
         new_papers.append(paper)
+    if debug_stats is not None:
+        debug_stats.final_new_papers = len(new_papers)
 
     summaries, summary_mode = summarize_papers(new_papers, max_ai_summary_papers)
     report_path = output_dir / f"biorxiv-human-evo-{dt.datetime.now():%Y-%m-%d}.md"
@@ -360,6 +412,7 @@ def run_once(
         max_ai_summary_papers,
         publication_window_days,
         search_query,
+        debug_stats,
     )
 
     summarized_at = dt.datetime.now().isoformat(timespec="seconds")
@@ -377,6 +430,15 @@ def run_once(
     print(f"Summary mode: {summary_mode}")
     print(f"AI summary cap: {max_ai_summary_papers}")
     print(f"Publication window (days): {publication_window_days}")
+    if debug_stats is not None:
+        print("Debug counts:")
+        print(f"  API records seen: {debug_stats.api_records_seen}")
+        print(f"  API records with DOI/title/abstract: {debug_stats.api_records_with_minimal_fields}")
+        print(f"  Query matches before DOI deduplication: {debug_stats.query_matched_before_dedup}")
+        print(f"  Candidate papers after DOI deduplication: {debug_stats.candidate_papers_after_dedup}")
+        print(f"  Skipped as already summarized: {debug_stats.skipped_already_summarized}")
+        print(f"  Skipped outside publication window: {debug_stats.skipped_outside_publication_window}")
+        print(f"  Final new papers summarized: {debug_stats.final_new_papers}")
     return len(new_papers)
 
 
@@ -422,6 +484,11 @@ def main() -> int:
         default=MAX_AI_SUMMARY_PAPERS,
         help="Use AI summaries only when the number of new papers is at or below this cap.",
     )
+    parser.add_argument(
+        "--debug-counts",
+        action="store_true",
+        help="Print filter counts and include them in the report to help diagnose discrepancies.",
+    )
     parser.add_argument("--schedule", type=parse_schedule, help="Run every day at HH:MM local time.")
     parser.add_argument("--run-once", action="store_true")
     args = parser.parse_args()
@@ -437,6 +504,7 @@ def main() -> int:
             args.max_ai_summary_papers,
             args.publication_window_days,
             args.search_query,
+            args.debug_counts,
         )
         return 0
 
@@ -451,6 +519,7 @@ def main() -> int:
                 args.max_ai_summary_papers,
                 args.publication_window_days,
                 args.search_query,
+                args.debug_counts,
             )
         except Exception as exc:  # pragma: no cover
             print(f"Run failed: {exc}", file=sys.stderr)
